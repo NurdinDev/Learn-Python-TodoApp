@@ -2,52 +2,143 @@
 <html lang="en">
 
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Todo App</title>
-  <style>
-    .hidden {
-      display: none;
-    }
-  </style>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Todo App</title>
+	<style>
+		.hidden {
+			display: none;
+		}
+
+		ul {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+			width: 200px;
+		}
+
+		li {
+			clear: both;
+		}
+
+		li button {
+			-webkit-appearance: none;
+			border: none;
+			outline: none;
+			color: red;
+			cursor: pointer;
+			font-size: 20px;
+			float: right;
+			background: none;
+		}
+
+	</style>
 </head>
 
 <body>
-  <form id="form">
+	<form id="form">
 		<input id="description" name="description" />
 		<input type="submit" value="Create" />
-  </form>
-  <div id="error" class="hidden"></div>
+	</form>
+	<div id="error" class="hidden"></div>
 	<ul id="todos">
 		{% for item in data %}
-		<li>{{item.description}}</li>
+		<li data-id={{item.id}}>
+			<input type="checkbox" class="check-box-completed" {% if item.compleated %} checked
+				{% endif %} />
+			{{item.description}}
+			<button class="delete-item">
+				&cross;
+			</button>
+		</li>
 		{% endfor %}
 	</ul>
 </body>
 
 <script>
-  document.getElementById('form').onsubmit = function (e) {
-    e.preventDefault();
-    console.log(e)
-    fetch('/todos/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        description: document.getElementById('description').value
-      }),
-      headers: {
-        'Content-type': 'application/json'
-      }
-    }).then(function(res) {
-      return res.json();
-    }).then(function (jsonResponse) {
-      const liItem = document.createElement('LI');
-      liItem.innerHTML = jsonResponse.description;
-      document.getElementById('todos').appendChild(liItem);
-    }).catch(function (error) {
-      const element = document.getElementById('error');
-      element.className = '';
-      element.innerText = error.message;
-    })
-  }
+	const checkboxes = document.querySelectorAll('.check-box-completed');
+	const deleteItemElem = document.querySelectorAll('.delete-item');
+	const errorElem = document.getElementById("error");
+
+	function appendItem(description) {
+		const liItem = document.createElement("LI");
+		liItem.innerHTML = description;
+		document.getElementById("todos").appendChild(liItem);
+		if (!errorElem.classList.contains('hidden')) {
+			errorElem.className = 'hidden';
+		}
+	}
+
+	for (let i = 0; i < checkboxes.length; i++) {
+		const checkbox = checkboxes[i];
+		checkbox.onchange = function (e) {
+			const newCompleted = e.target.checked;
+			const todoId = e.target.closest('li').dataset.id;
+			fetch(`/todos/${todoId}/set-completed`, {
+					method: 'POST',
+					body: JSON.stringify({
+						completed: newCompleted
+					})
+				})
+				.then(function () {
+					if (!errorElem.classList.contains('hidden')) {
+						errorElem.className = 'hidden';
+					}
+				})
+				.catch(function (error) {
+					const element = errorElem;
+					element.className = "";
+					element.innerText = error.message;
+				})
+		}
+	}
+	for (let i = 0; i < deleteItemElem.length; i++) {
+		const item = deleteItemElem[i];
+		item.onclick = function (e) {
+			const todoId = e.target.closest('li').dataset.id;
+			fetch(`/todos/${todoId}/delete`, {
+					method: 'DELETE'
+				})
+				.then(function () {
+					// remove this element from dom
+					const li = e.target.closest('li');
+					li.parentNode.removeChild(li);
+					if (!errorElem.classList.contains('hidden')) {
+						errorElem.className = 'hidden';
+					}
+				})
+				.catch(function (error) {
+					const element = errorElem;
+					element.className = "";
+					element.innerText = error.message;
+				})
+		}
+	}
+	document.getElementById("form").onsubmit = function (e) {
+		e.preventDefault();
+		console.log(e);
+		fetch("/todos/create", {
+				method: "POST",
+				body: JSON.stringify({
+					description: document.getElementById("description").value
+				}),
+				headers: {
+					"Content-type": "application/json"
+				}
+			})
+			.then(function (res) {
+				return res.json();
+			})
+			.then(function (jsonResponse) {
+				appendItem(jsonResponse.description)
+			})
+			.catch(function (error) {
+				const element = errorElem;
+				element.className = "";
+				element.innerText = error.message;
+			});
+	};
+
 </script>
+
 </html>
